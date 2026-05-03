@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cement & Clinker CO₂ Calculator</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #667eea;
+      --primary-dark: #5568d3;
+      --accent: #D05538;
+      --accent2: #27ae60;
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --border: #e2e6f0;
+      --text: #1a1e2e;
+      --muted: #6b7280;
+      --input-bg: #f9fafb;
+      --color-text-primary: #1a1e2e;
+      --color-text-secondary: #6b7280;
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #f4f6fb;
+      --color-border-secondary: #cbd5e1;
+      --color-border-tertiary: #e2e6f0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 24px 16px;
+      color: var(--text);
+    }
+
+    .page-wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 14px;
+      padding: 28px 32px;
+      color: white;
+      box-shadow: 0 8px 32px rgba(102,126,234,.3);
+    }
+    .header h1 { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+    .header p  { font-size: 13px; opacity: .8; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 12px rgba(0,0,0,.05);
+      padding: 24px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Process Animation Panel ── */
+    .anim-card {
+      background: var(--card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 12px rgba(0,0,0,.05);
+      padding: 20px;
+      overflow: visible;
+    }
+
+    /* Animation wrapper — SVG + floating input panels */
+    .anim-wrapper {
+      position: relative;
+    }
+
+    #main-svg {
+      width: 100%;
+      display: block;
+    }
+
+    /* Floating input panels anchored to the SVG coordinate system via absolute positioning */
+    .svg-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none; /* let SVG clicks through by default */
+    }
+
+    /* Kiln overlay — top-left area of SVG */
+    .overlay-kiln {
+      position: absolute;
+      /* positioned relative to SVG viewBox ~440×340 */
+      /* kiln is around x=215–285, let's place above it */
+      left: 37%;
+      top: 0%;
+      width: 28%;
+      pointer-events: all;
+    }
+
+    /* Mill overlay — right side */
+    .overlay-mill {
+      position: absolute;
+      right: 0%;
+      top: 0%;
+      width: 27%;
+      pointer-events: all;
+    }
+
+    .float-panel {
+      background: rgba(255,255,255,.97);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.10);
+      font-size: 11px;
+    }
+
+    .float-panel .fp-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 6px;
+      border-bottom: 1.5px solid var(--border);
+      padding-bottom: 4px;
+    }
+
+    .float-panel .fp-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .float-panel label {
+      flex: 1;
+      font-size: 10px;
+      color: var(--text);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .float-panel .fp-unit {
+      font-size: 9px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .float-panel input[type="number"] {
+      width: 62px;
+      padding: 3px 5px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-size: 10px;
+      background: var(--input-bg);
+      color: var(--text);
+      -moz-appearance: textfield;
+    }
+    .float-panel input[type="number"]::-webkit-inner-spin-button { display: none; }
+    .float-panel input[type="number"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(102,126,234,.15);
+    }
+
+    /* Mill panel — result display */
+    .fp-result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 3px;
+    }
+    .fp-result-label { font-size: 9px; color: var(--muted); flex: 1; }
+    .fp-result-val   { font-size: 13px; font-weight: 700; color: var(--primary); }
+    .fp-result-unit  { font-size: 8px; color: var(--muted); margin-left: 2px; }
+
+    /* CF input inside mill panel */
+    .mill-cf-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 6px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Animation keyframes */
+    @keyframes smoke { 0%{transform:translateY(0) scaleX(1);opacity:.7} 100%{transform:translateY(-55px) scaleX(2.2);opacity:0} }
+    @keyframes flow  { 0%{stroke-dashoffset:200} 100%{stroke-dashoffset:0} }
+    @keyframes conveyor { 0%{stroke-dashoffset:40} 100%{stroke-dashoffset:0} }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .smoke-puff  { animation: smoke 2s ease-out infinite; }
+    .smoke-puff:nth-child(2){animation-delay:.65s}
+    .smoke-puff:nth-child(3){animation-delay:1.3s}
+    .flow-line   { stroke-dasharray:8 4; animation: flow 1.5s linear infinite; }
+    .conveyor-belt { stroke-dasharray:10 5; animation: conveyor .8s linear infinite; }
+
+    /* step list */
+    .ts { font-size:10px; }
+
+    /* ── Main form ── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .form-group { display: flex; flex-direction: column; }
+
+    label.lbl {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .unit { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+    input[type="number"] {
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: var(--input-bg);
+      color: var(--text);
+      transition: border-color .2s, box-shadow .2s;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-inner-spin-button { display: none; }
+    input[type="number"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(102,126,234,.12);
+    }
+    input[type="number"].error { border-color: #e74c3c; }
+
+    .info-text { font-size: 11px; color: var(--muted); margin-top: 4px; font-style: italic; }
+    .error-message { color: #e74c3c; font-size: 11px; margin-top: 4px; display: none; }
+    .error-message.show { display: block; }
+
+    /* CalF toggle */
+    .calf-toggles { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+
+    .btn-toggle {
+      padding: 6px 14px;
+      background: #ecf0f1;
+      color: #333;
+      border: 1.5px solid #bdc3c7;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 12px;
+      transition: all .2s;
+    }
+    .btn-toggle.active      { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn-toggle.manual-active { background: #e67e22; color: white; border-color: #e67e22; }
+    .btn-toggle:hover       { border-color: var(--primary); }
+
+    .manual-calf-box {
+      display: none;
+      background: #fff8f0;
+      border: 1.5px solid #e67e22;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 8px;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .manual-calf-box.show { display: flex; }
+    .manual-calf-box label { color: #e67e22; font-size: 13px; font-weight: 600; }
+    .manual-calf-box input { max-width: 140px; border-color: #e67e22; }
+
+    .calf-preview { font-size: 12px; color: var(--muted); margin-top: 4px; font-style: italic; }
+    .calf-preview span { font-weight: 700; color: var(--primary); }
+
+    /* Scope 2 toggle */
+    .scope2-toggle-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: #ecf0f1;
+      border-radius: 8px;
+    }
+    .scope2-toggle-bar label { margin: 0; font-weight: 600; font-size: 13px; }
+
+    .scope2-inputs { display: none; }
+    .scope2-inputs.show { display: block; }
+
+    /* Results */
+    .results-section {
+      background: #f8f9fc;
+      border-radius: 10px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      margin-top: 16px;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    .result-box {
+      background: white;
+      border-left: 4px solid var(--primary);
+      padding: 14px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+      transition: opacity .2s;
+    }
+    .result-box.stale { opacity: .4; }
+
+    .result-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .result-value { font-size: 22px; font-weight: 700; color: var(--primary); }
+    .result-unit  { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent2);
+      background: #eafaf1;
+      border: 1px solid var(--accent2);
+      border-radius: 20px;
+      padding: 2px 8px;
+      margin-left: 10px;
+    }
+    .live-dot {
+      width: 6px; height: 6px;
+      background: var(--accent2);
+      border-radius: 50%;
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-primary   { background: var(--primary); color: white; flex: 1; min-width: 120px; }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(102,126,234,.35); }
+    .btn-secondary { background: #95a5a6; color: white; }
+    .btn-secondary:hover { background: #7f8c8d; }
+    .btn-green     { background: var(--accent2); color: white; flex: 1; min-width: 120px; }
+    .btn-green:hover { background: #229954; }
+    .btn-green.copied { background: #16a085; }
+
+    .error-box {
+      background: #fadbd8;
+      border-left: 4px solid #e74c3c;
+      padding: 14px;
+      border-radius: 6px;
+      color: #c0392b;
+      font-size: 13px;
+      display: none;
+    }
+    .error-box.show { display: block; }
+
+    /* ── Step list sidebar in anim ── */
+    .anim-flex { display: flex; gap: 0; }
+    .step-sidebar {
+      width: 170px;
+      flex-shrink: 0;
+      padding-right: 12px;
+      font-size: 12px;
+    }
+    .step-sidebar p {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 7px;
+    }
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      padding: 5px 7px;
+      margin-bottom: 3px;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 0.5px solid transparent;
+      transition: background .15s;
+    }
+    .step-item:hover { background: var(--bg); }
+    .step-item.sel   { background: var(--bg); border-color: var(--border); }
+    .step-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+
+    .anim-main { flex: 1; min-width: 0; position: relative; }
+
+    #info-panel {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 44px;
+      border: 0.5px solid var(--border);
+    }
+
+    @media (max-width: 640px) {
+      .overlay-kiln { left: 30%; width: 35%; }
+      .overlay-mill  { width: 32%; }
+      .step-sidebar  { display: none; }
+      .form-grid     { grid-template-columns: 1fr; }
+      .results-grid  { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🏭 Cement & Clinker CO₂ Calculator</h1>
+    <p>Calculate Scope 1 and Scope 2 CO₂ Emissions — Real-Time &nbsp;|&nbsp; oepoyoprakoso@gmail.com</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PROCESS ANIMATION CARD (with embedded input panels)
+  ══════════════════════════════════════════════════════════ -->
+  <div class="anim-card">
+    <div class="section-title">⚙️ Cement Manufacturing Process</div>
+
+    <div class="anim-flex">
+      <!-- Step list sidebar -->
+      <div class="step-sidebar">
+        <p>Process steps</p>
+        <div id="step-list"></div>
+      </div>
+
+      <!-- SVG + floating overlays -->
+      <div class="anim-main">
+        <div class="anim-wrapper">
+
+          <!-- ── FLOATING PANEL: Kiln inputs (TSR BM, TSR AF, ST, CalcF) ── -->
+          <div class="svg-overlay">
+            <div class="overlay-kiln">
+              <div class="float-panel" id="fp-kiln">
+                <div class="fp-title">🔥 Kiln Inputs</div>
+                <div class="fp-row">
+                  <label>TSR Biomass</label>
+                  <input type="number" id="bm" placeholder="0" min="0" max="100" step="0.01">
+                  <span class="fp-unit">%</span>
+                </div>
+                <div class="fp-row">
+                  <label>TSR Alt Fuel</label>
+                  <input type="number" id="af" placeholder="0" min="0" max="100" step="0.01">
+                  <span class="fp-unit">%</span>
+                </div>
+                <div class="fp-row">
+                  <label>Spec. Thermal</label>
+                  <input type="number" id="st" value="3350" min="0" step="0.01">
+                  <span class="fp-unit">MJ/t</span>
+                </div>
+                <div class="fp-row">
+                  <label>Calcination F.</label>
+                  <input type="number" id="anim-calf" value="530" min="0" step="0.1">
+                  <span class="fp-unit">kg/t</span>
+                </div>
+                <div class="error-message" id="bmError" style="font-size:9px">BM+AF &gt; 100%</div>
+              </div>
+            </div>
+
+            <!-- ── FLOATING PANEL: CF input + live results ── -->
+            <div class="overlay-mill">
+              <div class="float-panel" id="fp-mill">
+                <div class="fp-title">🏗️ Mill / Output</div>
+                <div class="mill-cf-row">
+                  <label style="font-size:10px;font-weight:600;color:var(--text);flex:1">Clinker Factor</label>
+                  <input type="number" id="cf" placeholder="70" min="0" max="100" step="0.01" style="width:62px;padding:3px 5px;border:1px solid #cbd5e1;border-radius:4px;font-size:10px;background:var(--input-bg)">
+                  <span class="fp-unit">%</span>
+                </div>
+                <div class="fp-result-row">
+                  <span class="fp-result-label">Gross CO₂ Cement S1</span>
+                  <span><span class="fp-result-val" id="fp-grossCem">—</span><span class="fp-result-unit">kg/t</span></span>
+                </div>
+                <div class="fp-result-row">
+                  <span class="fp-result-label">Net CO₂ Cement S1</span>
+                  <span><span class="fp-result-val" id="fp-netCem">—</span><span class="fp-result-unit">kg/t</span></span>
+                </div>
+                <div class="fp-result-row">
+                  <span class="fp-result-label">Gross CO₂ Clinker S1</span>
+                  <span><span class="fp-result-val" id="fp-grossClink">—</span><span class="fp-result-unit">kg/t</span></span>
+                </div>
+                <div class="fp-result-row">
+                  <span class="fp-result-label">Net CO₂ Clinker S1</span>
+                  <span><span class="fp-result-val" id="fp-netClink">—</span><span class="fp-result-unit">kg/t</span></span>
+                </div>
+              </div>
+            </div>
+          </div><!-- /.svg-overlay -->
+
+          <!-- ══════════ MAIN SVG ══════════ -->
+          <svg id="main-svg" viewBox="0 0 440 290" role="img" xmlns="http://www.w3.org/2000/svg">
+            <title>Cement manufacturing process with CO₂ emission sources</title>
+            <defs>
+              <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </marker>
+              <linearGradient id="kiln-grad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%"   stop-color="#D05538" stop-opacity=".4"/>
+                <stop offset="50%"  stop-color="#EF9F27" stop-opacity=".6"/>
+                <stop offset="100%" stop-color="#D05538" stop-opacity=".3"/>
+              </linearGradient>
+              <linearGradient id="sky-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#E6F1FB"/>
+                <stop offset="100%" stop-color="#B5D4F4"/>
+              </linearGradient>
+            </defs>
+
+            <rect x="0" y="0" width="440" height="290" fill="url(#sky-grad)" opacity=".10"/>
+            <line x1="0" y1="238" x2="440" y2="238" stroke="#e2e6f0" stroke-width="0.5"/>
+
+            <!-- ── QUARRY ── -->
+            <g id="g-quarry" style="cursor:pointer">
+              <polygon points="20,238 60,188 100,238" fill="#B4B2A9" stroke="#aaa" stroke-width="0.5"/>
+              <polygon points="35,238 70,203 90,238" fill="#888780" stroke="none"/>
+              <text class="ts" x="60" y="254" text-anchor="middle" fill="#6b7280">Quarry</text>
+              <text x="60" y="181" font-size="9" text-anchor="middle" fill="#6b7280">CaCO₃</text>
+              <rect x="78" y="222" width="22" height="12" rx="2" fill="#5F5E5A"/>
+              <circle cx="83" cy="234" r="3" fill="#2C2C2A"/>
+              <circle cx="96" cy="234" r="3" fill="#2C2C2A"/>
+            </g>
+
+            <!-- Arrow quarry → raw mill -->
+            <line x1="105" y1="218" x2="133" y2="218" stroke="#cbd5e1" stroke-width="1" marker-end="url(#ar)" class="flow-line"/>
+
+            <!-- ── RAW MILL ── -->
+            <g id="g-rawmill" style="cursor:pointer">
+              <rect x="138" y="198" width="44" height="40" rx="6" fill="#f4f6fb" stroke="#cbd5e1" stroke-width="0.5"/>
+              <circle cx="160" cy="218" r="10" fill="none" stroke="#5F5E5A" stroke-width="1.5"/>
+              <circle cx="160" cy="218" r="4"  fill="#888780"/>
+              <line x1="150" y1="218" x2="170" y2="218" stroke="#5F5E5A" stroke-width="1"/>
+              <line x1="160" y1="208" x2="160" y2="228" stroke="#5F5E5A" stroke-width="1"/>
+              <text class="ts" x="160" y="250" text-anchor="middle" fill="#6b7280">Raw mill</text>
+            </g>
+
+            <!-- Arrow raw mill → kiln -->
+            <line x1="182" y1="218" x2="208" y2="218" stroke="#cbd5e1" stroke-width="1" marker-end="url(#ar)" class="flow-line"/>
+
+            <!-- ── ROTARY KILN ── -->
+            <g id="g-kiln" style="cursor:pointer">
+              <rect x="213" y="203" width="70" height="30" rx="15" fill="url(#kiln-grad)" stroke="#D05538" stroke-width="1"/>
+              <line x1="233" y1="203" x2="238" y2="233" stroke="#E8593C" stroke-width="0.5" opacity=".4" class="conveyor-belt"/>
+              <line x1="248" y1="203" x2="253" y2="233" stroke="#E8593C" stroke-width="0.5" opacity=".4" class="conveyor-belt"/>
+              <line x1="263" y1="203" x2="268" y2="233" stroke="#E8593C" stroke-width="0.5" opacity=".4" class="conveyor-belt"/>
+              <text x="248" y="222" font-size="9" text-anchor="middle" fill="#D05538" font-weight="500">~1450°C</text>
+              <text class="ts" x="248" y="250" text-anchor="middle" fill="#6b7280">Rotary kiln</text>
+
+              <!-- CO2 calcination smoke -->
+              <g id="co2-calcination">
+                <ellipse class="smoke-puff" cx="226" cy="198" rx="8" ry="6" fill="#E24B4A" opacity=".6"/>
+                <ellipse class="smoke-puff" cx="238" cy="193" rx="6" ry="5" fill="#E24B4A" opacity=".5"/>
+                <ellipse class="smoke-puff" cx="250" cy="190" rx="7" ry="5" fill="#F09595" opacity=".4"/>
+              </g>
+              <text x="236" y="178" font-size="10" font-weight="600" fill="#A32D2D" text-anchor="middle">CO₂</text>
+              <text x="236" y="168" font-size="8" fill="#A32D2D" text-anchor="middle">calcination</text>
+              <line x1="236" y1="180" x2="236" y2="190" stroke="#E24B4A" stroke-width="0.5" marker-end="url(#ar)"/>
+            </g>
+
+            <!-- Arrow kiln → cooler -->
+            <line x1="283" y1="218" x2="306" y2="218" stroke="#D05538" stroke-width="1" marker-end="url(#ar)" class="flow-line"/>
+
+            <!-- ── COOLER ── -->
+            <g id="g-cooler" style="cursor:pointer">
+              <rect x="310" y="205" width="32" height="26" rx="4" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+              <line x1="318" y1="213" x2="318" y2="223" stroke="#378ADD" stroke-width="1"/>
+              <line x1="326" y1="213" x2="326" y2="223" stroke="#378ADD" stroke-width="1"/>
+              <line x1="334" y1="213" x2="334" y2="223" stroke="#378ADD" stroke-width="1"/>
+              <text class="ts" x="326" y="244" text-anchor="middle" fill="#6b7280">Cooler</text>
+              <text x="326" y="255" font-size="8" text-anchor="middle" fill="#6b7280">Clinker</text>
+            </g>
+
+            <!-- Arrow cooler → cement mill -->
+            <line x1="342" y1="218" x2="364" y2="218" stroke="#cbd5e1" stroke-width="1" marker-end="url(#ar)" class="flow-line"/>
+
+            <!-- ── CEMENT MILL ── -->
+            <g id="g-cmill" style="cursor:pointer">
+              <rect x="368" y="198" width="50" height="40" rx="6" fill="#f4f6fb" stroke="#cbd5e1" stroke-width="0.5"/>
+              <circle cx="393" cy="218" r="11" fill="none" stroke="#5F5E5A" stroke-width="1.5"/>
+              <circle cx="393" cy="218" r="5"  fill="#888780"/>
+              <text class="ts" x="393" y="250" text-anchor="middle" fill="#6b7280">Cement mill</text>
+              <rect x="396" y="230" width="12" height="10" rx="2" fill="#D3D1C7" stroke="#cbd5e1" stroke-width="0.5"/>
+              <text x="402" y="268" font-size="8" text-anchor="middle" fill="#6b7280">Cement</text>
+            </g>
+
+            <!-- ── FUEL STACK ── -->
+            <g id="co2-fuel">
+              <rect x="270" y="138" width="10" height="65" rx="2" fill="#444441"/>
+              <ellipse class="smoke-puff" cx="275" cy="136" rx="9" ry="7" fill="#888780" opacity=".5"/>
+              <ellipse class="smoke-puff" cx="281" cy="128" rx="7" ry="6" fill="#888780" opacity=".4"/>
+              <ellipse class="smoke-puff" cx="273" cy="120" rx="6" ry="5" fill="#B4B2A9" opacity=".3"/>
+              <text x="283" y="143" font-size="10" font-weight="600" fill="#5F5E5A">CO₂</text>
+              <text x="283" y="153" font-size="8" fill="#6b7280">fuel combustion</text>
+              <line x1="281" y1="143" x2="283" y2="146" stroke="#cbd5e1" stroke-width="0.5" marker-end="url(#ar)"/>
+            </g>
+
+            <!-- Legend -->
+            <g transform="translate(6, 6)">
+              <rect x="0" y="0" width="175" height="50" rx="6" fill="white" stroke="#e2e6f0" stroke-width="0.5" opacity=".92"/>
+              <circle cx="13" cy="15" r="6" fill="#E24B4A" opacity=".7"/>
+              <text x="25" y="19" font-size="9.5" fill="#1a1e2e">Calcination CO₂ (60% of total)</text>
+              <circle cx="13" cy="34" r="6" fill="#888780" opacity=".7"/>
+              <text x="25" y="38" font-size="9.5" fill="#1a1e2e">Fuel combustion CO₂ (40%)</text>
+            </g>
+          </svg>
+          <!-- ══════════ END SVG ══════════ -->
+
+        </div><!-- /.anim-wrapper -->
+
+        <!-- Info panel -->
+        <div id="info-panel">Click a step to learn more.</div>
+      </div><!-- /.anim-main -->
+    </div><!-- /.anim-flex -->
+  </div><!-- /.anim-card -->
+
+  <!-- ══════════════════════════════════════════════════════════
+       DETAILED CALCULATOR CARD
+  ══════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="section-title">📋 Scope 1 — Full Calculator</div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="lbl">Clinker Factor (CF) <span class="unit">%</span></label>
+        <input type="number" id="cf2" placeholder="e.g., 70" min="0" max="100" step="0.01">
+        <div class="error-message" id="cfError"></div>
+        <p class="info-text">Ratio of clinker to cement produced</p>
+      </div>
+
+      <div class="form-group">
+        <label class="lbl">Specific Thermal Energy <span class="unit">MJ/ton clinker</span></label>
+        <input type="number" id="st2" placeholder="3350" value="3350" min="0" step="0.01">
+        <div class="error-message" id="stError"></div>
+        <p class="info-text">Heat consumption in production</p>
+      </div>
+
+      <div class="form-group">
+        <label class="lbl">TSR Biomass (BM) <span class="unit">%</span></label>
+        <input type="number" id="bm2" placeholder="e.g., 10" min="0" max="100" step="0.01">
+        <div class="error-message" id="bm2Error"></div>
+        <p class="info-text">Biomass thermal substitution rate</p>
+      </div>
+
+      <div class="form-group">
+        <label class="lbl">TSR Alternative Fuel (AF) <span class="unit">%</span></label>
+        <input type="number" id="af2" placeholder="e.g., 10" min="0" max="100" step="0.01">
+        <div class="error-message" id="afError"></div>
+        <p class="info-text">Alternative fuel thermal substitution rate</p>
+      </div>
+    </div>
+
+    <!-- Calcination Factor Selection -->
+    <div class="form-group" style="margin-top:18px">
+      <label class="lbl" style="margin-bottom:10px">Calcination Factor Selection</label>
+      <div class="calf-toggles">
+        <button class="btn-toggle active" id="btnCalfDefault">Use Default (530 kg CO₂/ton Clink)</button>
+        <button class="btn-toggle" id="btnCalfCalculated">Calculate from Clinker & Alt Raw Materials</button>
+        <button class="btn-toggle" id="btnCalfManual">✏️ Manual Entry</button>
+      </div>
+      <p class="calf-preview">Calcination Factor: <span id="calfPreviewValue">530</span> kg CO₂/ton clinker</p>
+    </div>
+
+    <div id="manualCalfBox" class="manual-calf-box">
+      <label for="manualCalfInput">Enter Calcination Factor:</label>
+      <input type="number" id="manualCalfInput" placeholder="e.g., 520" min="0" max="1000" step="0.1">
+      <span class="unit">kg CO₂/ton clinker</span>
+      <span id="manualCalfFeedback" style="font-size:12px;color:#e67e22;font-weight:600"></span>
+    </div>
+
+    <!-- Calculated CalF inputs -->
+    <div id="calfCalculatedInputs" style="display:none;margin-top:14px">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="lbl">CaO in Clinker <span class="unit">%</span></label>
+          <input type="number" id="caoClinik" placeholder="e.g., 65" min="0" max="100" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="lbl">MgO in Clinker <span class="unit">%</span></label>
+          <input type="number" id="mgoClinik" placeholder="e.g., 2" min="0" max="100" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="lbl">CaO in Alt Raw Material <span class="unit">%</span></label>
+          <input type="number" id="caoAR" placeholder="e.g., 40" min="0" max="100" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="lbl">MgO in Alt Raw Material <span class="unit">%</span></label>
+          <input type="number" id="mgoAR" placeholder="e.g., 5" min="0" max="100" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="lbl">Quantity/Proportion of AR in raw meal <span class="unit">%</span></label>
+          <input type="number" id="quantityAR" placeholder="e.g., 10" min="0" max="100" step="0.01">
+        </div>
+      </div>
+    </div>
+  </div><!-- /.card -->
+
+  <!-- ══ Scope 2 ══ -->
+  <div class="card">
+    <div class="scope2-toggle-bar">
+      <label><strong>Include Scope 2 (Electricity Emissions)</strong></label>
+      <button class="btn-toggle" id="scope2Toggle">Enable Scope 2</button>
+    </div>
+
+    <div id="scope2Inputs" class="scope2-inputs" style="margin-top:18px">
+      <div class="section-title" style="font-size:14px">Scope 2 — Electricity Emissions</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="lbl">SEC Cement Total <span class="unit">kWh/ton cement</span></label>
+          <input type="number" id="secCemPLN" placeholder="e.g., 120" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="lbl">SEC Cement from Renewable <span class="unit">kWh/ton cement</span></label>
+          <input type="number" id="secCemRen" placeholder="e.g., 30" min="0" step="0.01">
+          <p class="info-text">e.g., PLTS/WHR</p>
+        </div>
+        <div class="form-group">
+          <label class="lbl">SEC Clinker Total <span class="unit">kWh/ton clinker</span></label>
+          <input type="number" id="secClinkPLN" placeholder="e.g., 60" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="lbl">SEC Clinker from Renewable <span class="unit">kWh/ton clinker</span></label>
+          <input type="number" id="secClinkRen" placeholder="e.g., 10" min="0" step="0.01">
+          <p class="info-text">e.g., PLTS/WHR</p>
+        </div>
+        <div class="form-group">
+          <label class="lbl">PLN Grid CO₂ Intensity <span class="unit">ton CO₂/MWh</span></label>
+          <input type="number" id="gridCO2" placeholder="0.87" value="0.87" min="0" step="0.01">
+          <p class="info-text">Default: 0.87 (Indonesia Jamali PLN average)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Buttons ══ -->
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="resetBtn">🔄 Reset</button>
+    <button class="btn btn-green" id="copyBtn">📋 Copy Results</button>
+  </div>
+
+  <!-- ══ Results ══ -->
+  <div class="results-section">
+    <div class="section-title">
+      📈 Results
+      <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+    </div>
+
+    <div class="results-grid">
+      <div class="result-box" id="boxCalF">
+        <div class="result-label">Calcination Factor</div>
+        <div class="result-value" id="resultCalF">—</div>
+        <div class="result-unit">kg CO₂/ton clinker</div>
+      </div>
+      <div class="result-box" id="boxGrossCem">
+        <div class="result-label">Gross CO₂ Cement (Scope 1)</div>
+        <div class="result-value" id="resultGrossCO2Cem">—</div>
+        <div class="result-unit">kg CO₂/ton cement</div>
+      </div>
+      <div class="result-box" id="boxNetCem">
+        <div class="result-label">Net CO₂ Cement (Scope 1)</div>
+        <div class="result-value" id="resultNetCO2Cem">—</div>
+        <div class="result-unit">kg CO₂/ton cement</div>
+      </div>
+      <div class="result-box" id="boxGrossClink">
+        <div class="result-label">Gross CO₂ Clinker (Scope 1)</div>
+        <div class="result-value" id="resultGrossCO2Clink">—</div>
+        <div class="result-unit">kg CO₂/ton clinker</div>
+      </div>
+      <div class="result-box" id="boxNetClink">
+        <div class="result-label">Net CO₂ Clinker (Scope 1)</div>
+        <div class="result-value" id="resultNetCO2Clink">—</div>
+        <div class="result-unit">kg CO₂/ton clinker</div>
+      </div>
+    </div>
+
+    <div id="scope2Results" style="display:none">
+      <div class="section-title" style="margin-top:24px;font-size:14px">Plus Scope 2 — Electricity Emissions</div>
+      <div class="results-grid">
+        <div class="result-box">
+          <div class="result-label">Gross CO₂ Cement (Scope 1+2)</div>
+          <div class="result-value" id="resultGrossCO2CemScope2">—</div>
+          <div class="result-unit">kg CO₂/ton cement</div>
+        </div>
+        <div class="result-box">
+          <div class="result-label">Net CO₂ Cement (Scope 1+2)</div>
+          <div class="result-value" id="resultNetCO2CemScope2">—</div>
+          <div class="result-unit">kg CO₂/ton cement</div>
+        </div>
+        <div class="result-box">
+          <div class="result-label">Gross CO₂ Clinker (Scope 1+2)</div>
+          <div class="result-value" id="resultGrossCO2ClinkScope2">—</div>
+          <div class="result-unit">kg CO₂/ton clinker</div>
+        </div>
+        <div class="result-box">
+          <div class="result-label">Net CO₂ Clinker (Scope 1+2)</div>
+          <div class="result-value" id="resultNetCO2ClinkScope2">—</div>
+          <div class="result-unit">kg CO₂/ton clinker</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /.page-wrap -->
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// PROCESS ANIMATION — step list + info panel
+// ─────────────────────────────────────────────────────────────
+const steps = [
+  { id:"quarry",  label:"Limestone quarrying",      color:"#B4B2A9",
+    info:"Limestone (CaCO₃) is blasted from quarries. ~1.5 tonnes needed per tonne of cement. Clay, sand, and iron ore are also extracted here." },
+  { id:"rawmill", label:"Raw milling & blending",   color:"#888780",
+    info:"Limestone and additives are ground into a fine powder called 'raw meal'. Correct proportions of CaO, SiO₂, Al₂O₃, and Fe₂O₃ are critical for clinker quality." },
+  { id:"kiln",    label:"Rotary kiln (calcination)", color:"#D05538",
+    info:"⚠️ Biggest CO₂ source. At ~900°C: CaCO₃ → CaO + CO₂↑  This alone accounts for ~60% of cement's CO₂ and cannot be avoided by switching fuels." },
+  { id:"cooler",  label:"Clinker cooling",           color:"#185FA5",
+    info:"Hot clinker (1450°C) is rapidly cooled to ~100°C. Heat is partially recovered for the kiln. Solid clinker nodules are the intermediate product." },
+  { id:"cmill",   label:"Cement milling",            color:"#5F5E5A",
+    info:"Clinker is ground with ~5% gypsum (and sometimes slag or fly ash) to produce Portland cement. Significant electricity use but not a major direct CO₂ source." },
+];
+
+const infos = {};
+steps.forEach(s => infos[s.id] = s.info);
+
+const list = document.getElementById('step-list');
+steps.forEach(s => {
+  const div = document.createElement('div');
+  div.className = 'step-item';
+  div.innerHTML = `<span class="step-dot" style="background:${s.color}"></span><span style="font-size:11px;color:var(--text);line-height:1.35">${s.label}</span>`;
+  div.onmouseenter = () => { if(!div.classList.contains('sel')) div.style.background='var(--bg)'; };
+  div.onmouseleave = () => { if(!div.classList.contains('sel')) div.style.background=''; };
+  div.onclick = () => selectStep(s.id, div);
+  list.appendChild(div);
+  s.el = div;
+});
+
+['quarry','rawmill','kiln','cooler','cmill'].forEach(id => {
+  const g = document.getElementById('g-'+id);
+  if(g) g.onclick = () => selectStep(id, steps.find(s=>s.id===id)?.el);
+});
+
+function selectStep(id, div) {
+  steps.forEach(s => { s.el.style.background=''; s.el.classList.remove('sel'); });
+  if(div){ div.style.background='var(--bg)'; div.classList.add('sel'); }
+  document.getElementById('info-panel').textContent = infos[id] || '';
+}
+
+// ─────────────────────────────────────────────────────────────
+// SYNC: animation panel inputs ↔ main calculator inputs
+// ─────────────────────────────────────────────────────────────
+// Pairs: [anim-input-id, main-input-id]
+const syncPairs = [
+  ['bm',  'bm2'],
+  ['af',  'af2'],
+  ['st',  'st2'],
+  ['cf',  'cf2'],
+];
+
+syncPairs.forEach(([animId, mainId]) => {
+  const animEl = document.getElementById(animId);
+  const mainEl = document.getElementById(mainId);
+  animEl.addEventListener('input', () => { mainEl.value = animEl.value; runCalc(); });
+  mainEl.addEventListener('input', () => { animEl.value = mainEl.value; runCalc(); });
+});
+
+// anim-calf syncs with manualCalfInput when manual mode is active
+const animCalfEl = document.getElementById('anim-calf');
+animCalfEl.addEventListener('input', () => { runCalc(); });
+
+// ─────────────────────────────────────────────────────────────
+// CALCULATOR LOGIC
+// ─────────────────────────────────────────────────────────────
+const cfInput2  = document.getElementById('cf2');
+const stInput2  = document.getElementById('st2');
+const bmInput2  = document.getElementById('bm2');
+const afInput2  = document.getElementById('af2');
+const resetBtn  = document.getElementById('resetBtn');
+const errorBox  = document.getElementById('errorBox');
+const copyBtn   = document.getElementById('copyBtn');
+
+const btnCalfDefault    = document.getElementById('btnCalfDefault');
+const btnCalfCalculated = document.getElementById('btnCalfCalculated');
+const btnCalfManual     = document.getElementById('btnCalfManual');
+const calfCalculatedInputs = document.getElementById('calfCalculatedInputs');
+const manualCalfBox     = document.getElementById('manualCalfBox');
+const manualCalfInput   = document.getElementById('manualCalfInput');
+const manualCalfFeedback= document.getElementById('manualCalfFeedback');
+const calfPreviewValue  = document.getElementById('calfPreviewValue');
+
+const scope2Toggle  = document.getElementById('scope2Toggle');
+const scope2Inputs  = document.getElementById('scope2Inputs');
+const scope2Results = document.getElementById('scope2Results');
+
+const resultCalF            = document.getElementById('resultCalF');
+const resultGrossCO2Cem     = document.getElementById('resultGrossCO2Cem');
+const resultNetCO2Cem       = document.getElementById('resultNetCO2Cem');
+const resultGrossCO2Clink   = document.getElementById('resultGrossCO2Clink');
+const resultNetCO2Clink     = document.getElementById('resultNetCO2Clink');
+const resultGrossCO2CemScope2   = document.getElementById('resultGrossCO2CemScope2');
+const resultNetCO2CemScope2     = document.getElementById('resultNetCO2CemScope2');
+const resultGrossCO2ClinkScope2 = document.getElementById('resultGrossCO2ClinkScope2');
+const resultNetCO2ClinkScope2   = document.getElementById('resultNetCO2ClinkScope2');
+
+let calfMode    = 'default';
+let includeScope2 = false;
+
+function setCalfMode(mode) {
+  calfMode = mode;
+  btnCalfDefault.classList.toggle('active', mode === 'default');
+  btnCalfCalculated.classList.toggle('active', mode === 'calculated');
+  btnCalfManual.classList.remove('active','manual-active');
+  if (mode === 'manual') btnCalfManual.classList.add('manual-active');
+  calfCalculatedInputs.style.display = (mode === 'calculated') ? 'block' : 'none';
+  manualCalfBox.classList.toggle('show', mode === 'manual');
+
+  // sync anim-calf visibility/usability
+  if (mode === 'manual') {
+    animCalfEl.disabled = false;
+    animCalfEl.style.borderColor = '#e67e22';
+    animCalfEl.title = 'Override calcination factor';
+  } else {
+    animCalfEl.disabled = true;
+    animCalfEl.style.borderColor = '';
+    animCalfEl.title = mode === 'default' ? 'Default 530 — switch to Manual to override' : 'Calculated from inputs below';
+  }
+  runCalc();
+}
+
+btnCalfDefault.addEventListener('click',    () => setCalfMode('default'));
+btnCalfCalculated.addEventListener('click', () => setCalfMode('calculated'));
+btnCalfManual.addEventListener('click',     () => setCalfMode('manual'));
+
+scope2Toggle.addEventListener('click', () => {
+  includeScope2 = !includeScope2;
+  scope2Toggle.classList.toggle('active', includeScope2);
+  scope2Inputs.classList.toggle('show', includeScope2);
+  scope2Results.style.display = includeScope2 ? 'block' : 'none';
+  runCalc();
+});
+
+function calculateCalF() {
+  if (calfMode === 'default') return 530;
+  if (calfMode === 'manual') {
+    // use anim panel value (they're the same)
+    const v = parseFloat(animCalfEl.value);
+    if (!isNaN(v) && v >= 0) return v;
+    const v2 = parseFloat(manualCalfInput.value);
+    return (!isNaN(v2) && v2 >= 0) ? v2 : null;
+  }
+  // calculated
+  const caoClinik  = parseFloat(document.getElementById('caoClinik').value)  || 0;
+  const mgoClinik  = parseFloat(document.getElementById('mgoClinik').value)  || 0;
+  const caoAR      = parseFloat(document.getElementById('caoAR').value)      || 0;
+  const mgoAR      = parseFloat(document.getElementById('mgoAR').value)      || 0;
+  const quantityAR = parseFloat(document.getElementById('quantityAR').value) || 0;
+  const term1 = (caoClinik/100*0.64516/56.1*44) + (mgoClinik/100*0.64516/40.3*44);
+  const term2 = (caoAR/100*quantityAR/100/56.1*44) + (mgoAR/100*quantityAR/100/40.3*44);
+  return Math.max(((term1 - term2) / 0.64516) * 1000, 0);
+}
+
+function fmt(n) { return isNaN(n) ? '—' : n.toFixed(1); }
+
+function markStale(stale) {
+  ['boxCalF','boxGrossCem','boxNetCem','boxGrossClink','boxNetClink'].forEach(id => {
+    document.getElementById(id).classList.toggle('stale', stale);
+  });
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if(el){ el.textContent = msg; el.classList.add('show'); }
+}
+
+function clearErrors() {
+  document.querySelectorAll('.error-message').forEach(el => { el.classList.remove('show'); el.textContent=''; });
+  document.querySelectorAll('input[type="number"]').forEach(el => el.classList.remove('error'));
+  errorBox.classList.remove('show'); errorBox.textContent='';
+}
+
+function runCalc() {
+  clearErrors();
+
+  // Read from main inputs (synced from anim panel)
+  const cf = parseFloat(cfInput2.value);
+  const st = parseFloat(stInput2.value);
+  const bm = parseFloat(bmInput2.value);
+  const af = parseFloat(afInput2.value);
+
+  if (cfInput2.value==='' && stInput2.value==='') {
+    [resultCalF, resultGrossCO2Cem, resultNetCO2Cem, resultGrossCO2Clink, resultNetCO2Clink]
+      .forEach(el => el.textContent='—');
+    // clear mini panel too
+    ['fp-grossCem','fp-netCem','fp-grossClink','fp-netClink'].forEach(id => document.getElementById(id).textContent='—');
+    markStale(false);
+    calfPreviewValue.textContent='—';
+    return;
+  }
+
+  let valid = true;
+  if (isNaN(cf)||cf<=0||cf>100) {
+    if (cfInput2.value!=='') { showError('cfError','Must be 0–100 %'); cfInput2.classList.add('error'); valid=false; }
+  }
+  if (isNaN(st)||st<0) {
+    if (stInput2.value!=='') { showError('stError','Must be ≥ 0'); stInput2.classList.add('error'); valid=false; }
+  }
+  const bmVal = isNaN(bm)?0:bm;
+  const afVal = isNaN(af)?0:af;
+  if (bmVal+afVal>100) { showError('bmError','BM + AF cannot exceed 100 %'); valid=false; }
+
+  const calF = calculateCalF();
+
+  // Update anim calf display
+  if (calfMode==='default') animCalfEl.value = '530';
+  if (calfMode==='calculated' && calF!==null && !isNaN(calF)) animCalfEl.value = calF.toFixed(1);
+
+  if (calF!==null && !isNaN(calF)) {
+    calfPreviewValue.textContent = calF.toFixed(1);
+    if (calfMode==='manual') manualCalfFeedback.textContent = `→ Using ${calF.toFixed(1)} kg CO₂/ton clinker`;
+  } else {
+    calfPreviewValue.textContent = calfMode==='manual'?'(enter value)':'—';
+  }
+
+  resultCalF.textContent = (calF!==null&&!isNaN(calF)) ? calF.toFixed(1) : '—';
+
+  if (!valid||isNaN(cf)||cf<=0||isNaN(st)||calF===null||isNaN(calF)) {
+    markStale(true);
+    return;
+  }
+  markStale(false);
+
+  const fuelEmission = ((afVal/100*st)*80.9/1000000 + ((100-bmVal-afVal)/100*st)*96/1000000)*(1+0.012);
+  const emissionFactor = calF/1000 + 1.55*0.2/100*3.664;
+  const totalEmission  = fuelEmission + emissionFactor;
+
+  const grossCO2Cem   = totalEmission / (1/cf*100) * 1000;
+  const netCO2Cem     = (((100-bmVal-afVal)/100*st)*96/1000000*(1+0.012)+emissionFactor) / (1/cf*100) * 1000;
+  const grossCO2Clink = totalEmission * 1000;
+  const netCO2Clink   = (((100-bmVal-afVal)/100*st)*96/1000000*(1+0.012)+emissionFactor) * 1000;
+
+  resultGrossCO2Cem.textContent   = fmt(grossCO2Cem);
+  resultNetCO2Cem.textContent     = fmt(netCO2Cem);
+  resultGrossCO2Clink.textContent = fmt(grossCO2Clink);
+  resultNetCO2Clink.textContent   = fmt(netCO2Clink);
+
+  // Update mini panel
+  document.getElementById('fp-grossCem').textContent   = fmt(grossCO2Cem);
+  document.getElementById('fp-netCem').textContent     = fmt(netCO2Cem);
+  document.getElementById('fp-grossClink').textContent = fmt(grossCO2Clink);
+  document.getElementById('fp-netClink').textContent   = fmt(netCO2Clink);
+
+  if (includeScope2) {
+    const secCemPLN  = parseFloat(document.getElementById('secCemPLN').value)  ||0;
+    const secCemRen  = parseFloat(document.getElementById('secCemRen').value)  ||0;
+    const secClinkPLN= parseFloat(document.getElementById('secClinkPLN').value)||0;
+    const secClinkRen= parseFloat(document.getElementById('secClinkRen').value)||0;
+    const gridCO2   = parseFloat(document.getElementById('gridCO2').value)    ||0.87;
+    const scope2CO2Cem  = (secCemPLN  - secCemRen)  * gridCO2;
+    const scope2CO2Clink= (secClinkPLN - secClinkRen)* gridCO2;
+    resultGrossCO2CemScope2.textContent   = fmt(grossCO2Cem   + scope2CO2Cem);
+    resultNetCO2CemScope2.textContent     = fmt(netCO2Cem     + scope2CO2Cem);
+    resultGrossCO2ClinkScope2.textContent = fmt(grossCO2Clink + scope2CO2Clink);
+    resultNetCO2ClinkScope2.textContent   = fmt(netCO2Clink   + scope2CO2Clink);
+  }
+}
+
+// Reset
+function reset() {
+  ['cf','cf2','st','st2','bm','bm2','af','af2',
+   'manualCalfInput','secCemPLN','secCemRen','secClinkPLN','secClinkRen',
+   'caoClinik','mgoClinik','caoAR','mgoAR','quantityAR'].forEach(id => {
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('st2').value='3350';
+  document.getElementById('st').value='3350';
+  document.getElementById('gridCO2').value='0.87';
+  document.getElementById('anim-calf').value='530';
+  includeScope2=false;
+  scope2Toggle.classList.remove('active');
+  scope2Inputs.classList.remove('show');
+  scope2Results.style.display='none';
+  setCalfMode('default');
+  clearErrors();
+  runCalc();
+}
+
+// Copy
+function copyResultsToClipboard() {
+  const results = {
+    "Calcination Factor (kg CO₂/ton clinker)": resultCalF.textContent,
+    "Gross CO₂ Cement Scope 1 (kg CO₂/ton cement)": resultGrossCO2Cem.textContent,
+    "Net CO₂ Cement Scope 1 (kg CO₂/ton cement)": resultNetCO2Cem.textContent,
+    "Gross CO₂ Clinker Scope 1 (kg CO₂/ton clinker)": resultGrossCO2Clink.textContent,
+    "Net CO₂ Clinker Scope 1 (kg CO₂/ton clinker)": resultNetCO2Clink.textContent,
+  };
+  if (includeScope2) {
+    results["Gross CO₂ Cement Scope 1+2"]  = resultGrossCO2CemScope2.textContent;
+    results["Net CO₂ Cement Scope 1+2"]    = resultNetCO2CemScope2.textContent;
+    results["Gross CO₂ Clinker Scope 1+2"] = resultGrossCO2ClinkScope2.textContent;
+    results["Net CO₂ Clinker Scope 1+2"]   = resultNetCO2ClinkScope2.textContent;
+  }
+  const text = Object.entries(results).map(([k,v])=>`${k}: ${v}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    copyBtn.textContent='✅ Copied!'; copyBtn.classList.add('copied');
+    setTimeout(()=>{ copyBtn.textContent='📋 Copy Results'; copyBtn.classList.remove('copied'); },2000);
+  }).catch(()=>alert('Failed to copy'));
+}
+
+// Attach listeners
+document.querySelectorAll('input[type="number"]').forEach(inp => inp.addEventListener('input', runCalc));
+manualCalfInput.addEventListener('input', () => {
+  animCalfEl.value = manualCalfInput.value;
+  runCalc();
+});
+resetBtn.addEventListener('click', reset);
+copyBtn.addEventListener('click', copyResultsToClipboard);
+
+// Init
+setCalfMode('default');
+runCalc();
+</script>
+</body>
+</html>
